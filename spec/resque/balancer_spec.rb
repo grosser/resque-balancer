@@ -12,6 +12,11 @@ end
 
 Resque.logger = InstantFeedbackLogger
 
+# too tight loops can randomly break the usage logic since one execution might take 0.0002 and the next 0.004
+RSpec::Matchers.define :with_delay_and_argument do |delay, argument|
+  match { |actual| sleep delay; actual == argument }
+end
+
 describe Resque::Plugins::Balancer do
   class AllJob
     def self.perform(queue)
@@ -60,25 +65,54 @@ describe Resque::Plugins::Balancer do
   end
 
   it "does not blow up" do
-    with_env 'WEIGHTS' => 'other_job:2' do
-      worker = worker(['test_job'])
+    worker = worker(['test_job'])
+    Resque.enqueue(TestJob)
+    expect(AllJob).to receive(:perform).with('test_job')
+    worker.work(single_run)
+  end
+
+  it "enqueues from the highest priority queue when everything is clean" do
+    with_env 'BALANCER_WEIGHTS' => 'other_job:1,test_job:2' do
+      worker = worker(['other_job', 'test_job'])
+      Resque.enqueue(OtherJob)
       Resque.enqueue(TestJob)
-      expect(AllJob).to receive(:perform).with('test_job')
+      expect(AllJob).to receive(:perform).with('test_job').ordered
+      expect(AllJob).to receive(:perform).with('other_job').ordered
       worker.work(single_run)
     end
   end
 
-  it "fails with missing WEIGHTS" do
-    expect do
-      worker(['test_job']).work(single_run)
-    end.to raise_error(/WEIGHTS/)
-  end
-
-  it "enqueues from the highest priority queue when everything is clean" do
-    with_env 'WEIGHTS' => 'other_job:1,test_job:2' do
+  it "treats missing weight as 1" do
+    with_env 'BALANCER_WEIGHTS' => 'other_job:0.1,test_job' do
       worker = worker(['other_job', 'test_job'])
       Resque.enqueue(OtherJob)
       Resque.enqueue(TestJob)
+      expect(AllJob).to receive(:perform).with('test_job').ordered
+      expect(AllJob).to receive(:perform).with('other_job').ordered
+      worker.work(single_run)
+    end
+  end
+
+  it "enqueues by usage" do
+    with_env 'BALANCER_WEIGHTS' => 'other_job:1,test_job:2' do
+      worker = worker(['other_job', 'test_job'])
+      Resque.enqueue(OtherJob)
+      Resque.enqueue(TestJob)
+      Resque.enqueue(TestJob)
+      expect(AllJob).to receive(:perform).with(with_delay_and_argument(0.1, 'test_job')).ordered
+      expect(AllJob).to receive(:perform).with(with_delay_and_argument(0.1, 'other_job')).ordered
+      expect(AllJob).to receive(:perform).with(with_delay_and_argument(0.1, 'test_job')).ordered
+      worker.work(single_run)
+    end
+  end
+
+  it "frees busy queues after interval" do
+    with_env 'BALANCER_RESET_INTERVAL' => '0', 'BALANCER_WEIGHTS' => 'other_job:1,test_job:2' do
+      worker = worker(['other_job', 'test_job'])
+      Resque.enqueue(OtherJob)
+      Resque.enqueue(TestJob)
+      Resque.enqueue(TestJob)
+      expect(AllJob).to receive(:perform).with('test_job').ordered
       expect(AllJob).to receive(:perform).with('test_job').ordered
       expect(AllJob).to receive(:perform).with('other_job').ordered
       worker.work(single_run)
