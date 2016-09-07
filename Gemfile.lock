@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    resque-balancer (0.0.0)
+    resque-balancer (0.1.0)
       resque (~> 1.26.0)
 
 GEM
@@ -58,3 +58,6 @@ DEPENDENCIES
   resque-balancer!
   rspec
   single_cov
+
+BUNDLED WITH
+   1.12.5
