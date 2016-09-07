@@ -9,5 +9,5 @@ Gem::Specification.new name, Resque::Balancer::VERSION do |s|
   s.files = `git ls-files lib/ MIT-LICENSE`.split("\n")
   s.license = "MIT"
   s.required_ruby_version = '>= 2.0.0'
-  s.add_runtime_dependency "resque", "~> 1.27.0"
+  s.add_runtime_dependency "resque", "~> 1.26.0"
 end

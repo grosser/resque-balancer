@@ -3,12 +3,15 @@ require "spec_helper"
 SingleCov.covered! file: 'lib/resque/plugins/balancer.rb'
 
 class InstantFeedbackLogger
+  def self.formatter=(x); end
   def self.debug(_); end
   def self.info(_); end
   def self.warn(message);  raise message end
   def self.error(message); raise message; end
   def self.fatal(message); raise message; end
 end
+
+ENV["FORK_PER_JOB"] = 'false' # make assertions work
 
 Resque.logger = InstantFeedbackLogger
 
@@ -45,9 +48,7 @@ describe Resque::Plugins::Balancer do
   end
 
   def worker(queues)
-    worker = Resque::Worker.new(*queues)
-    worker.fork_per_job = false # make our assertions work
-    worker
+    Resque::Worker.new(*queues)
   end
 
   def with_env(env)
