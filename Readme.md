@@ -24,6 +24,10 @@ export BALANCER_RESET_INTERVAL=60
 rake resque:work
 ```
 
+Known issues
+============
+ - flooding a queue with long running jobs will make all workers process 1 of them, leading to potential short starvation of other queues
+
 Alternatives
 ============
  - [resque-crowd_control](https://github.com/zendesk/resque-crowd_control) a bit more complicated, does congestion control based on custom attributes accross all workers

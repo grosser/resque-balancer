@@ -58,6 +58,3 @@ DEPENDENCIES
   resque-balancer!
   rspec
   single_cov
-
-BUNDLED WITH
-   1.12.5

@@ -107,6 +107,20 @@ describe Resque::Plugins::Balancer do
     end
   end
 
+  it "adds usage even if job fails" do
+    with_env 'BALANCER_WEIGHTS' => 'other_job:1,test_job:2' do
+      worker = worker(['other_job', 'test_job'])
+      Resque.enqueue(OtherJob)
+      Resque.enqueue(TestJob)
+      Resque.enqueue(TestJob)
+      expect(InstantFeedbackLogger).to receive(:error)
+      expect(AllJob).to receive(:perform).with(with_delay_and_argument(0.1, 'test_job')).ordered
+      expect(AllJob).to receive(:perform).with(with_delay_and_argument(0.1, 'other_job')).and_raise(RuntimeError).ordered
+      expect(AllJob).to receive(:perform).with(with_delay_and_argument(0.1, 'test_job')).ordered
+      worker.work(single_run)
+    end
+  end
+
   it "frees busy queues after interval" do
     with_env 'BALANCER_RESET_INTERVAL' => '0', 'BALANCER_WEIGHTS' => 'other_job:1,test_job:2' do
       worker = worker(['other_job', 'test_job'])
