@@ -24,6 +24,10 @@ export BALANCER_RESET_INTERVAL=60
 rake resque:work
 ```
 
+Alternatives
+============
+ - [resque-crowd_control](https://github.com/zendesk/resque-crowd_control) a bit more complicated, does congestion control based on custom attributes accross all workers
+
 Author
 ======
 [Michael Grosser](http://grosser.it)<br/>
